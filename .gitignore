@@ -1,0 +1,10 @@
+# Build artifact — regenerate with: zip -q hermes-win-installer.zip install-hermes.ps1 install-hermes.cmd README.md
+hermes-win-installer.zip
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
