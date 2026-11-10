@@ -1,16 +1,54 @@
-# Hermes Agent — Windows Auto Installer
+# Hermes Agent — One-Shot Auto Installer (Windows & Linux)
 
-Satu script, sekali jalan: **install Hermes → set provider + model + API key → pasang Telegram bot → autostart gateway (Scheduled Task)**.
+Satu script, sekali jalan: **install Hermes → set provider + model + API key → pasang Telegram bot → autostart gateway**.
 
-## Isi folder
+## File Installer
 
-| File | Fungsi |
-|---|---|
-| `install-hermes.ps1` | Otak installer. Semua config ada di blok `$CFG` di bagian atas file. |
-| `install-hermes.cmd` | Launcher. **Double-click ini** (bypass ExecutionPolicy otomatis). |
-| `README.md` | File ini. |
+| OS | File | Cara Jalankan |
+|---|---|---|
+| **Windows** | `install-hermes.cmd` / `install-hermes.ps1` | Double-click `install-hermes.cmd` atau via PowerShell |
+| **Linux** | `install-hermes.sh` | `./install-hermes.sh` |
 
-## Cara pakai — zero prompt (rekomendasi)
+---
+
+## 1. Versi Linux (Ubuntu / Debian / RHEL / Arch / dll)
+
+### Cara Cepat (Zero-Prompt)
+1. Download / clone repo ini:
+   ```bash
+   git clone https://github.com/antoniuscahyo/hermesagent-auto-installer.git
+   cd hermesagent-auto-installer
+   ```
+2. Buka `install-hermes.sh` dengan nano / text editor, isi konfigurasi di bagian atas:
+   ```bash
+   CFG_PROVIDER="deepseek"
+   CFG_MODEL="deepseek-v4-flash"
+   CFG_API_KEY="sk-xxxx"
+   CFG_TELEGRAM_TOKEN="123456789:AAxxxx"
+   CFG_TELEGRAM_ALLOWED_USERS="111111111"
+   ```
+3. Beri izin eksekusi lalu jalankan:
+   ```bash
+   chmod +x install-hermes.sh
+   ./install-hermes.sh
+   ```
+
+### Atau via Satu Baris Command
+```bash
+./install-hermes.sh --provider deepseek --model deepseek-v4-flash \
+  --api-key "sk-xxxx" \
+  --telegram-token "123456789:AAxxxx" \
+  --allowed-users "111111111"
+```
+
+> **PENTING DI LINUX:**
+> - **JANGAN jalankan pakai `sudo`!** Hermes berjalan di user space (`~/.hermes`).
+> - Script otomatis memasang autostart via **systemd user service** (`systemctl --user`).
+> - Script juga otomatis menjalankan `loginctl enable-linger $USER` agar bot Telegram tetap menyala di background meskipun Anda disconnect / logout dari SSH.
+
+---
+
+## 2. Versi Windows
 
 1. Extract folder ini ke mana saja, mis. `C:\Users\<kamu>\Downloads\hermes-win-installer`.
 2. Buka `install-hermes.ps1` pakai Notepad / VS Code, edit blok ini saja:
