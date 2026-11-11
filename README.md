@@ -184,3 +184,71 @@ hermes gateway restart
 hermes gateway uninstall      # hapus Scheduled Task
 hermes uninstall              # hapus Hermes (opsional)
 ```
+
+---
+
+## 4. Panduan Saat Proses Install Berjalan Sampai Selesai
+
+Berikut apa yang akan tampil di layar dari awal sampai bot Telegram siap dipakai. Total durasi install awal sekitar **5–15 menit** tergantung kecepatan internet.
+
+### Tahap 1 — Target Konfigurasi (0–5 detik)
+- Script mencetak ringkasan: `HERMES_HOME`, `Provider`, `Model`, dan versi tersensor (`sk-x...xxxx`) untuk `API Key` dan `Telegram Token`.
+- **Jika API key / Telegram token masih kosong** dan tidak memakai flag unattended: script akan meminta input sekali (ketik/paste lalu Enter; input disensor).
+- **Kalau salah ketik token Telegram** (tidak sesuai format `123456789:AA...`), script langsung berhenti sebelum menulis file apa pun.
+
+### Tahap 2 — Download & Pasang Hermes Agent (5–15 menit)
+- Script mengecek apakah `hermes` sudah terpasang. Jika sudah ada, tahap ini langsung di-skip (kecuali pakai flag `--force` / `-Force`).
+- Jika belum ada, installer resmi berjalan otomatis tanpa wizard:
+  1. Menyiapkan `uv`, Python 3.11, Git, Node.js, `ripgrep`, dan `ffmpeg`.
+  2. Clone repository `hermes-agent` dan membuat virtual environment (`venv`).
+  3. Install paket Python + dependensi Node/TUI + Chromium/Playwright untuk browser tool.
+- **Kelihatan diam agak lama?** Bagian `Installing Python dependencies` dan download Chromium memang paling lama (bisa 3–8 menit) tanpa banyak baris output — tunggu sampai lanjut, **jangan di-close**.
+- **Khusus Linux jika macet di error `zygote` / `Broken pipe (32)`:**
+  Tekan `Ctrl + C`, lalu jalankan:
+  ```bash
+  mkdir -p ~/.hermes
+  echo 'AGENT_BROWSER_ARGS="--no-sandbox,--disable-dev-shm-usage,--disable-gpu"' >> ~/.hermes/.env
+  ./install-hermes.sh
+  ```
+  (atau jalankan ulang dengan `--skip-browser`).
+
+### Tahap 3 — Konfigurasi Provider, Model, API Key, & Telegram (5–10 detik)
+- Output normal:
+  - `[OK]  model.provider = deepseek`
+  - `[OK]  model.default  = deepseek-v4-flash`
+  - `[OK]  DEEPSEEK_API_KEY tersimpan`
+  - `[OK]  TELEGRAM_BOT_TOKEN tersimpan`
+  - `[OK]  TELEGRAM_ALLOWED_USERS = ...`
+- **Peringatan kuning `[!] TELEGRAM_ALLOWED_USERS kosong`:** artinya siapa pun yang menemukan bot Telegram Anda bisa memakainya. Sangat disarankan isi ID numerik dari `@userinfobot`.
+
+### Tahap 4 — Pasang Autostart Gateway & Status (5–15 detik)
+- Script otomatis mendaftarkan service background supaya gateway menyala otomatis setiap login/boot dan langsung di-start:
+  - **macOS:** `launchd` LaunchAgent di `~/Library/LaunchAgents/ai.hermes.gateway.plist`.
+  - **Linux:** `systemd --user` service + `loginctl enable-linger $USER` (tetap hidup walau SSH ditutup).
+  - **Windows:** Task Scheduler per-user (fallback ke folder Startup jika diblokir kebijakan kantor).
+- Di layar muncul blok `Status Gateway` (`hermes gateway status`). Pastikan statusnya aktif/running.
+
+### Tahap 5 — Smoke Test & Ringkasan Selesai (5–20 detik)
+- Script mengirim 1 pesan tes (`Reply with exactly: OK`) ke provider untuk membuktikan API key dan model benar-benar valid:
+  - `[OK]  Provider merespons - API key & model valid` → konfigurasi inference beres.
+  - Jika muncul `[!]` (mis. saldo provider habis / koneksi lambat), instalasi tetap lanjut; cek ulang nanti dengan `hermes chat -q "halo"`.
+- Setelah muncul banner **SELESAI** / **PEMASANGAN SELESAI**:
+
+### Langkah Verifikasi Setelah Selesai
+1. **Buka terminal / PowerShell BARU** (supaya `PATH` baru terbaca).
+2. Cek perintah dasar:
+   ```bash
+   hermes --version
+   hermes doctor
+   hermes gateway status
+   ```
+3. **Tes di Telegram:** buka bot Anda di aplikasi Telegram → klik **Start** / kirim `/start` → kirim pesan biasa (`halo`).
+   - Jika bot tidak membalas:
+     - Pastikan ID Telegram Anda sudah masuk di `TELEGRAM_ALLOWED_USERS` (atau cek log):
+       - **macOS / Linux:** `tail -f ~/.hermes/logs/gateway.log`
+       - **Windows:** `Get-Content "$env:LOCALAPPDATA\hermes\logs\gateway.log" -Tail 50 -Wait`
+4. **Cek autostart per OS:**
+   - **macOS:** `launchctl list | grep hermes`
+   - **Linux:** `systemctl --user status hermes-gateway`
+   - **Windows:** `Get-ScheduledTask | Where-Object TaskName -like "*ermes*"`
+
