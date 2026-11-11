@@ -37,6 +37,8 @@
 param(
     [string]$Provider              = "",
     [string]$Model                 = "",
+    [string]$BaseUrl               = "",
+    [string]$ApiMode               = "",
     [string]$ApiKey                = "",
     [string]$ApiKeyEnv             = "",
     [string]$TelegramToken         = "",
@@ -55,9 +57,11 @@ param(
 #  Kosongkan ApiKey / TelegramToken kalau mau script nanya interaktif.
 # =============================================================================
 $CFG = @{
-    Provider             = "deepseek"                 # deepseek | openrouter | anthropic | openai-api | gemini | zai | kimi-coding | minimax | xai | nvidia | ...
-    Model                = "deepseek-v4-flash"        # model default
-    ApiKey               = ""                         # API key provider (mis. "sk-...")
+    Provider             = "deepseek"                 # deepseek | 9router | custom | ollama | vllm | openrouter | anthropic | openai-api | gemini | zai | ...
+    Model                = "deepseek-v4-flash"        # model default (atau model 9Router, mis. "cc/claude-sonnet-4-5", "cx/gpt-5.3-codex")
+    BaseUrl              = ""                         # opsional (wajib jika Provider="custom", mis. "http://localhost:20128/v1" untuk 9Router)
+    ApiMode              = ""                         # opsional: kosong=auto | chat_completions | anthropic_messages | codex_responses
+    ApiKey               = ""                         # API key provider (kosongkan jika endpoint lokal tanpa auth)
     TelegramToken        = ""                         # "123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     TelegramAllowedUsers = ""                         # "111111111,222222222" (ID numerik, pisah koma)
     TelegramHomeChannel  = ""                         # opsional: "-1001234567890"
@@ -71,10 +75,23 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
 # ---------------------------------------------------------------- merge config
 if (-not $Provider)             { $Provider = $CFG.Provider }
 if (-not $Model)                { $Model = $CFG.Model }
+if (-not $BaseUrl)              { $BaseUrl = $CFG.BaseUrl }
+if (-not $ApiMode)              { $ApiMode = $CFG.ApiMode }
 if (-not $ApiKey)               { $ApiKey = $CFG.ApiKey }
 if (-not $TelegramToken)        { $TelegramToken = $CFG.TelegramToken }
 if (-not $TelegramAllowedUsers) { $TelegramAllowedUsers = $CFG.TelegramAllowedUsers }
 if (-not $TelegramHomeChannel)  { $TelegramHomeChannel = $CFG.TelegramHomeChannel }
+
+# ----------------------------------------- resolve custom/router provider alias
+$provNorm = $Provider.Trim().ToLower()
+$EffectiveProvider = $Provider.Trim()
+switch ($provNorm) {
+    "9router"  { $EffectiveProvider = "custom"; if (-not $BaseUrl) { $BaseUrl = "http://localhost:20128/v1" } }
+    "ollama"   { $EffectiveProvider = "custom"; if (-not $BaseUrl) { $BaseUrl = "http://localhost:11434/v1" } }
+    "vllm"     { $EffectiveProvider = "custom"; if (-not $BaseUrl) { $BaseUrl = "http://localhost:8000/v1" } }
+    "llamacpp" { $EffectiveProvider = "custom"; if (-not $BaseUrl) { $BaseUrl = "http://localhost:8080/v1" } }
+    "custom"   { $EffectiveProvider = "custom" }
+}
 
 # ------------------------------------------------------------------- ui helper
 function Write-Step { param([string]$Msg) Write-Host ""; Write-Host "==> $Msg" -ForegroundColor Cyan }
@@ -217,8 +234,10 @@ $hermesPy   = Join-Path $venvDir "python.exe"
 
 Write-Step "Target install"
 Write-Note "HERMES_HOME : $HermesHome"
-Write-Note "Provider    : $Provider"
+Write-Note "Provider    : $EffectiveProvider$(if ($provNorm -ne $EffectiveProvider.ToLower()) { " ($Provider)" })"
+if ($BaseUrl) { Write-Note "Base URL    : $BaseUrl" }
 Write-Note "Model       : $Model"
+if ($ApiMode) { Write-Note "API Mode    : $ApiMode" }
 Write-Note "API key     : $(Mask-Value $ApiKey)"
 Write-Note "Telegram    : $(Mask-Value $TelegramToken)"
 Write-Note "Allowlist   : $(if ($TelegramAllowedUsers) { $TelegramAllowedUsers } else { '(kosong - SIAPA PUN bisa pakai bot!)' })"
@@ -235,6 +254,16 @@ try {
 } catch { }
 
 # --------------------------------------------------------------- prompt secrets
+if ($EffectiveProvider -eq "custom" -and -not $BaseUrl) {
+    if (-not $Unattended) {
+        Write-Host ""
+        Write-Note "Endpoint custom/router butuh Base URL (contoh 9Router: http://localhost:20128/v1)."
+        $BaseUrl = Read-Text "Base URL endpoint"
+    }
+    if (-not $BaseUrl) {
+        Fail "BaseUrl wajib diisi untuk provider 'custom' (mis. -BaseUrl http://localhost:20128/v1)."
+    }
+}
 if (-not $ApiKey) {
     if ($Unattended) {
         Write-Warn "ApiKey kosong (mode unattended) - langkah API key dilewati."
@@ -330,10 +359,14 @@ function Invoke-Hermes {
 # =============================================================================
 Write-Step "Set default provider dan model"
 try {
-    Invoke-Hermes config set model.provider $Provider
+    Invoke-Hermes config set model.provider $EffectiveProvider
+    if ($BaseUrl) { Invoke-Hermes config set model.base_url $BaseUrl }
     if ($Model) { Invoke-Hermes config set model.default $Model }
-    Write-Ok "model.provider = $Provider"
+    if ($ApiMode) { Invoke-Hermes config set model.api_mode $ApiMode }
+    Write-Ok "model.provider = $EffectiveProvider"
+    if ($BaseUrl) { Write-Ok "model.base_url = $BaseUrl" }
     if ($Model) { Write-Ok "model.default  = $Model" }
+    if ($ApiMode) { Write-Ok "model.api_mode = $ApiMode" }
 } catch {
     Write-Bad $_.Exception.Message
     Fail "Gagal set model/provider. Config: $configFile"
@@ -347,6 +380,11 @@ $providerKeyEnv = @{
     "openrouter"      = "OPENROUTER_API_KEY"
     "openai"          = "OPENAI_API_KEY"
     "openai-api"      = "OPENAI_API_KEY"
+    "custom"          = "OPENAI_API_KEY"
+    "9router"         = "OPENAI_API_KEY"
+    "ollama"          = "OPENAI_API_KEY"
+    "vllm"            = "OPENAI_API_KEY"
+    "llamacpp"        = "OPENAI_API_KEY"
     "anthropic"       = "ANTHROPIC_API_KEY"
     "gemini"          = "GOOGLE_API_KEY"
     "zai"             = "GLM_API_KEY"
@@ -372,7 +410,7 @@ $providerKeyEnv = @{
 if ($ApiKey) {
     Write-Step "Simpan API key provider"
     $envKey = $ApiKeyEnv
-    if (-not $envKey) { $envKey = $providerKeyEnv[$Provider.ToLower()] }
+    if (-not $envKey) { $envKey = $providerKeyEnv[$EffectiveProvider.ToLower()] }
     if (-not $envKey) {
         Fail "Nama env var untuk provider '$Provider' tidak dikenal. Jalankan ulang dengan -ApiKeyEnv NAMA_ENV_VAR."
     }
@@ -494,7 +532,10 @@ Write-Host ""
 Write-Host "   HERMES_HOME : $HermesHome"
 Write-Host "   Config      : $configFile"
 Write-Host "   Secrets     : $envFile"
-Write-Host "   Provider    : $Provider  ($Model)"
+Write-Host "   Provider    : $EffectiveProvider  ($Model)"
+if ($BaseUrl) {
+    Write-Host "   Base URL    : $BaseUrl"
+}
 if ($TelegramToken) {
     Write-Host "   Telegram    : token OK, allowlist: $(if ($TelegramAllowedUsers) { $TelegramAllowedUsers } else { 'TERBUKA' })"
 }

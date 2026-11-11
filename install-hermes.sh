@@ -35,6 +35,8 @@ set -eo pipefail
 # =============================================================================
 CFG_PROVIDER="deepseek"
 CFG_MODEL="deepseek-v4-flash"
+CFG_BASE_URL=""
+CFG_API_MODE=""
 CFG_API_KEY=""
 CFG_API_KEY_ENV=""
 CFG_TELEGRAM_TOKEN=""
@@ -45,6 +47,8 @@ CFG_TELEGRAM_HOME_CHANNEL=""
 # Variabel runtime
 PROVIDER="${CFG_PROVIDER}"
 MODEL="${CFG_MODEL}"
+BASE_URL="${CFG_BASE_URL}"
+API_MODE="${CFG_API_MODE}"
 API_KEY="${CFG_API_KEY}"
 API_KEY_ENV="${CFG_API_KEY_ENV}"
 TELEGRAM_TOKEN="${CFG_TELEGRAM_TOKEN}"
@@ -61,6 +65,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --provider) PROVIDER="$2"; shift 2 ;;
     --model) MODEL="$2"; shift 2 ;;
+    --base-url) BASE_URL="$2"; shift 2 ;;
+    --api-mode) API_MODE="$2"; shift 2 ;;
     --api-key) API_KEY="$2"; shift 2 ;;
     --api-key-env) API_KEY_ENV="$2"; shift 2 ;;
     --telegram-token) TELEGRAM_TOKEN="$2"; shift 2 ;;
@@ -73,8 +79,10 @@ while [[ $# -gt 0 ]]; do
     --unattended) UNATTENDED=1; shift ;;
     -h|--help)
       echo "Penggunaan: $0 [options]"
-      echo "  --provider <name>        Default provider (deepseek, openrouter, anthropic, dll)"
-      echo "  --model <name>           Default model"
+      echo "  --provider <name>        Provider (deepseek, 9router, custom, ollama, vllm, openrouter, dll)"
+      echo "  --model <name>           Default model (atau custom model, mis. cc/claude-sonnet-4-5)"
+      echo "  --base-url <url>         Endpoint URL (wajib utk 'custom'; default 9router: http://localhost:20128/v1)"
+      echo "  --api-mode <mode>        Opsional: chat_completions | anthropic_messages | codex_responses"
       echo "  --api-key <key>          API key provider"
       echo "  --telegram-token <token> Telegram Bot Token dari @BotFather"
       echo "  --allowed-users <ids>    ID Telegram diizinkan (koma jika banyak)"
@@ -129,8 +137,25 @@ echo -e "###########################################################${NC}"
 
 write_step "Target Konfigurasi"
 write_note "HERMES_HOME : $HERMES_HOME"
-write_note "Provider    : $PROVIDER"
+
+PROV_NORM="${PROVIDER,,}"
+EFFECTIVE_PROVIDER="$PROVIDER"
+case "$PROV_NORM" in
+  9router)  EFFECTIVE_PROVIDER="custom"; [[ -z "$BASE_URL" ]] && BASE_URL="http://localhost:20128/v1" ;;
+  ollama)   EFFECTIVE_PROVIDER="custom"; [[ -z "$BASE_URL" ]] && BASE_URL="http://localhost:11434/v1" ;;
+  vllm)     EFFECTIVE_PROVIDER="custom"; [[ -z "$BASE_URL" ]] && BASE_URL="http://localhost:8000/v1" ;;
+  llamacpp) EFFECTIVE_PROVIDER="custom"; [[ -z "$BASE_URL" ]] && BASE_URL="http://localhost:8080/v1" ;;
+  custom)   EFFECTIVE_PROVIDER="custom" ;;
+esac
+
+if [[ "$PROV_NORM" != "${EFFECTIVE_PROVIDER,,}" ]]; then
+  write_note "Provider    : $EFFECTIVE_PROVIDER ($PROVIDER)"
+else
+  write_note "Provider    : $EFFECTIVE_PROVIDER"
+fi
+[[ -n "$BASE_URL" ]] && write_note "Base URL    : $BASE_URL"
 write_note "Model       : $MODEL"
+[[ -n "$API_MODE" ]] && write_note "API Mode    : $API_MODE"
 write_note "API Key     : $(mask_val "$API_KEY")"
 write_note "Telegram    : $(mask_val "$TELEGRAM_TOKEN")"
 write_note "Allowlist   : ${TELEGRAM_ALLOWED_USERS:-(TERBUKA UNTUK SIAPA PUN)}"
@@ -142,6 +167,7 @@ get_provider_env_key() {
     deepseek) echo "DEEPSEEK_API_KEY" ;;
     openrouter) echo "OPENROUTER_API_KEY" ;;
     openai|openai-api) echo "OPENAI_API_KEY" ;;
+    custom|9router|ollama|vllm|llamacpp) echo "OPENAI_API_KEY" ;;
     anthropic) echo "ANTHROPIC_API_KEY" ;;
     gemini) echo "GOOGLE_API_KEY" ;;
     zai) echo "GLM_API_KEY" ;;
@@ -189,6 +215,17 @@ set_env_value() {
 }
 
 # Prompt rahasia jika kosong dan bukan unattended
+if [[ "$EFFECTIVE_PROVIDER" == "custom" && -z "$BASE_URL" ]]; then
+  if [[ $UNATTENDED -eq 0 ]]; then
+    echo ""
+    write_note "Endpoint custom/router butuh Base URL (contoh 9Router: http://localhost:20128/v1)."
+    read -r -p "    Base URL endpoint: " BASE_URL || true
+  fi
+  if [[ -z "$BASE_URL" ]]; then
+    fail "Base URL wajib diisi untuk provider 'custom' (mis. --base-url http://localhost:20128/v1)."
+  fi
+fi
+
 if [[ -z "$API_KEY" && $UNATTENDED -eq 0 ]]; then
   echo ""
   write_note "API key provider '$PROVIDER' belum diisi. (Enter untuk lewati)"
@@ -220,7 +257,7 @@ if [[ ! -x "$HERMES_BIN" || $FORCE -eq 1 ]]; then
   
   export NONINTERACTIVE=1
   export SKIP_SETUP=1
-  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-setup --hermes-home "$HERMES_HOME"
   
   if [[ -x "$HOME/.local/bin/hermes" ]]; then
     HERMES_BIN="$HOME/.local/bin/hermes"
@@ -244,11 +281,19 @@ export PATH="$HOME/.local/bin:$HERMES_HOME/hermes-agent/venv/bin:$PATH"
 # 2) SET DEFAULT PROVIDER & MODEL
 # =============================================================================
 write_step "Mengatur default provider & model"
-"$HERMES_BIN" config set model.provider "$PROVIDER"
-write_ok "model.provider = $PROVIDER"
+"$HERMES_BIN" config set model.provider "$EFFECTIVE_PROVIDER"
+write_ok "model.provider = $EFFECTIVE_PROVIDER"
+if [[ -n "$BASE_URL" ]]; then
+  "$HERMES_BIN" config set model.base_url "$BASE_URL"
+  write_ok "model.base_url = $BASE_URL"
+fi
 if [[ -n "$MODEL" ]]; then
   "$HERMES_BIN" config set model.default "$MODEL"
   write_ok "model.default  = $MODEL"
+fi
+if [[ -n "$API_MODE" ]]; then
+  "$HERMES_BIN" config set model.api_mode "$API_MODE"
+  write_ok "model.api_mode = $API_MODE"
 fi
 
 # =============================================================================
@@ -259,7 +304,7 @@ if [[ -n "$API_KEY" ]]; then
   write_step "Menyimpan API Key provider ke $ENV_FILE"
   TARGET_ENV="$API_KEY_ENV"
   if [[ -z "$TARGET_ENV" ]]; then
-    TARGET_ENV=$(get_provider_env_key "$PROVIDER")
+    TARGET_ENV=$(get_provider_env_key "$EFFECTIVE_PROVIDER")
   fi
   if [[ -z "$TARGET_ENV" ]]; then
     fail "Nama env var untuk provider '$PROVIDER' tidak dikenali. Gunakan --api-key-env NAMA_ENV."
@@ -328,8 +373,8 @@ fi
 # =============================================================================
 # 6) SMOKE TEST
 # =============================================================================
-if [[ $SKIP_SMOKE_TEST -eq 0 && -n "$API_KEY" ]]; then
-  write_step "Smoke Test: 1x Test Call ke $PROVIDER"
+if [[ $SKIP_SMOKE_TEST -eq 0 && ( -n "$API_KEY" || "$EFFECTIVE_PROVIDER" == "custom" ) ]]; then
+  write_step "Smoke Test: 1x Test Call ke $EFFECTIVE_PROVIDER"
   if "$HERMES_BIN" chat -q "Reply with exactly: OK" -Q >/dev/null 2>&1; then
     write_ok "Inference berhasil! Provider & API Key aktif."
   else
@@ -346,7 +391,8 @@ echo -e "===========================================================${NC}\n"
 echo -e "   HERMES_HOME : $HERMES_HOME"
 echo -e "   Config      : $HERMES_HOME/config.yaml"
 echo -e "   Secrets     : $ENV_FILE"
-echo -e "   Provider    : $PROVIDER ($MODEL)"
+echo -e "   Provider    : $EFFECTIVE_PROVIDER ($MODEL)"
+[[ -n "$BASE_URL" ]] && echo -e "   Base URL    : $BASE_URL"
 if [[ -n "$TELEGRAM_TOKEN" ]]; then
   echo -e "   Telegram    : Bot Token OK (Allowed Users: ${TELEGRAM_ALLOWED_USERS:-TERBUKA})"
 fi

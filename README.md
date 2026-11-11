@@ -187,6 +187,50 @@ hermes uninstall              # hapus Hermes (opsional)
 
 ---
 
+## 3b. Pakai 9Router / Custom Model / Endpoint Lainnya
+
+Semua installer (Windows, Linux, macOS) mendukung endpoint OpenAI-compatible seperti **9Router**, **Ollama**, **vLLM**, **llama.cpp**, **LiteLLM**, atau proxy custom lain.
+
+| Nilai `Provider` | Efek otomatis | Default `BaseUrl` (jika dikosongkan) |
+|---|---|---|
+| `9router` | Set `model.provider = custom` | `http://localhost:20128/v1` |
+| `ollama` | Set `model.provider = custom` | `http://localhost:11434/v1` |
+| `vllm` | Set `model.provider = custom` | `http://localhost:8000/v1` |
+| `llamacpp` | Set `model.provider = custom` | `http://localhost:8080/v1` |
+| `custom` | Set `model.provider = custom` | Wajib isi `--base-url` / `-BaseUrl` |
+
+API key (jika endpoint pakai auth) otomatis disimpan sebagai `OPENAI_API_KEY` di `.env`. Jika endpoint lokal tanpa auth, kosongkan saja API key-nya.
+
+### Contoh 9Router (macOS / Linux)
+```bash
+./install-hermes-macos.sh \
+  --provider 9router \
+  --base-url "http://localhost:20128/v1" \
+  --model "cc/claude-sonnet-4-5" \
+  --api-key "sk-9router-xxxx" \
+  --telegram-token "123456789:AAxxxx" \
+  --allowed-users "111111111"
+```
+*(Untuk Linux ganti script menjadi `./install-hermes.sh`.)*
+
+### Contoh 9Router / Custom Proxy (Windows PowerShell)
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-hermes.ps1 `
+  -Provider 9router `
+  -BaseUrl "http://localhost:20128/v1" `
+  -Model "cx/gpt-5.3-codex" `
+  -ApiKey "sk-9router-xxxx" `
+  -TelegramToken "123456789:AAxxxx" `
+  -TelegramAllowedUsers "111111111"
+```
+
+### Contoh Endpoint Custom Remote (mis. LiteLLM / CLIProxy / API kompatibel OpenAI)
+- **macOS / Linux:** `--provider custom --base-url "https://proxy-anda.example.com/v1" --model "nama-model-anda" --api-key "sk-xxxx"`
+- **Windows:** `-Provider custom -BaseUrl "https://proxy-anda.example.com/v1" -Model "nama-model-anda" -ApiKey "sk-xxxx"`
+- Opsional tambah `--api-mode` / `-ApiMode` (`chat_completions`, `anthropic_messages`, `codex_responses`) jika proxy tidak auto-detect.
+
+---
+
 ## 4. Panduan Saat Proses Install Berjalan Sampai Selesai
 
 Berikut apa yang akan tampil di layar dari awal sampai bot Telegram siap dipakai. Total durasi install awal sekitar **5–15 menit** tergantung kecepatan internet.
