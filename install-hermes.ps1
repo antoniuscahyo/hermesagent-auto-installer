@@ -62,7 +62,7 @@ $CFG = @{
     BaseUrl              = ""                         # opsional (wajib jika Provider="custom", mis. "http://localhost:20128/v1" untuk 9Router)
     ApiMode              = ""                         # opsional: kosong=auto | chat_completions | anthropic_messages | codex_responses
     ApiKey               = ""                         # API key provider (kosongkan jika endpoint lokal tanpa auth)
-    TelegramToken        = ""                         # "123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    TelegramToken        = ""                         # "123456789:AA_<token_dari_botfather>"
     TelegramAllowedUsers = ""                         # "111111111,222222222" (ID numerik, pisah koma)
     TelegramHomeChannel  = ""                         # opsional: "-1001234567890"
 }
@@ -439,7 +439,7 @@ if ($TelegramToken) {
     Write-Step "Konfigurasi Telegram bot"
     $TelegramToken = $TelegramToken.Trim()
     if ($TelegramToken -notmatch '^\d+:[A-Za-z0-9_-]{30,}$') {
-        Fail "Format token Telegram tidak valid. Harus seperti 123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        Fail "Format token Telegram tidak valid. Harus seperti 123456789:AA_<token_dari_botfather>"
     }
     try {
         Set-EnvValue -Path $envFile -Key "TELEGRAM_BOT_TOKEN" -Value $TelegramToken | Out-Null

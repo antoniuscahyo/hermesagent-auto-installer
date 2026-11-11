@@ -406,7 +406,7 @@ fi
 if [ -n "$TELEGRAM_TOKEN" ]; then
   write_step "Mengatur bot Telegram"
   if ! printf '%s' "$TELEGRAM_TOKEN" | grep -Eq '^[0-9]+:[A-Za-z0-9_-]{30,}$'; then
-    fail "Format bot token Telegram tidak valid! Contoh: 123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    fail "Format bot token Telegram tidak valid! Contoh: 123456789:AA_<token_dari_botfather>"
   fi
   set_env_value "$ENV_FILE" "TELEGRAM_BOT_TOKEN" "$TELEGRAM_TOKEN"
   write_ok "TELEGRAM_BOT_TOKEN tersimpan"

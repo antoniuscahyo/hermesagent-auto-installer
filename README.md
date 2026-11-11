@@ -26,7 +26,7 @@ Sebelum menjalankan installer, siapkan 2 hal dari Telegram: **Bot Token** dan **
 4. **Username bot** (harus unik dan **wajib diakhiri `bot`**, contoh: `cahyo_hermes_bot`).
 5. Jika berhasil, `@BotFather` akan membalas pesan berisi **HTTP API token** dengan format angka + huruf, contoh:
    ```text
-   7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   123456789:AA_<token_dari_botfather>
    ```
 6. **Copy token tersebut** → masukkan ke `TelegramToken` / `--telegram-token`.
 
@@ -134,7 +134,7 @@ $CFG = @{
     Provider             = "deepseek"                 # provider default
     Model                = "deepseek-v4-flash"        # model default
     ApiKey               = "sk-xxxxxxxxxxxxxxxx"      # API key provider
-    TelegramToken        = "123456789:AAxxxxxxxxxxxx" # token dari @BotFather
+    TelegramToken        = "123456789:AA_<token_dari_botfather>" # token dari @BotFather
     TelegramAllowedUsers = "111111111"                # ID Telegram kamu (pisah koma kalau >1)
     TelegramHomeChannel  = ""                         # opsional
 }
@@ -150,7 +150,7 @@ $CFG = @{
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install-hermes.ps1 `
   -Provider deepseek -Model deepseek-v4-flash `
   -ApiKey "sk-xxxxxxxx" `
-  -TelegramToken "123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxx" `
+  -TelegramToken "123456789:AA_<token_dari_botfather>" `
   -TelegramAllowedUsers "111111111,222222222"
 ```
 
