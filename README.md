@@ -1,4 +1,4 @@
-# Hermes Agent — One-Shot Auto Installer (Windows & Linux)
+# Hermes Agent — One-Shot Auto Installer (Windows, Linux & macOS)
 
 Satu script, sekali jalan: **install Hermes → set provider + model + API key → pasang Telegram bot → autostart gateway**.
 
@@ -8,10 +8,49 @@ Satu script, sekali jalan: **install Hermes → set provider + model + API key �
 |---|---|---|
 | **Windows** | `install-hermes.cmd` / `install-hermes.ps1` | Double-click `install-hermes.cmd` atau via PowerShell |
 | **Linux** | `install-hermes.sh` | `./install-hermes.sh` |
+| **macOS** | `install-hermes-macos.sh` / `install-hermes-macos.command` | `./install-hermes-macos.sh` atau double-click `.command` |
 
 ---
 
-## 1. Versi Linux (Ubuntu / Debian / RHEL / Arch / dll)
+## 1. Versi macOS (Apple Silicon & Intel)
+
+### Cara Cepat (Zero-Prompt)
+1. Clone repo ini:
+   ```bash
+   git clone https://github.com/antoniuscahyo/hermesagent-auto-installer.git
+   cd hermesagent-auto-installer
+   ```
+2. Edit blok `CFG_` di bagian atas `install-hermes-macos.sh`:
+   ```bash
+   CFG_PROVIDER="deepseek"
+   CFG_MODEL="deepseek-v4-flash"
+   CFG_API_KEY="sk-xxxx"
+   CFG_TELEGRAM_TOKEN="123456789:AAxxxx"
+   CFG_TELEGRAM_ALLOWED_USERS="111111111"
+   ```
+3. Jalankan:
+   ```bash
+   chmod +x install-hermes-macos.sh install-hermes-macos.command
+   ./install-hermes-macos.sh
+   ```
+   (Atau double-click `install-hermes-macos.command` dari Finder.)
+
+### Atau via Satu Baris Command
+```bash
+./install-hermes-macos.sh --provider deepseek --model deepseek-v4-flash \
+  --api-key "sk-xxxx" \
+  --telegram-token "123456789:AAxxxx" \
+  --allowed-users "111111111"
+```
+
+> **PENTING DI macOS:**
+> - **JANGAN pakai `sudo`!** Hermes & service `launchd` berjalan di user space (`~/.hermes`).
+> - Autostart dipasang ke `~/Library/LaunchAgents/ai.hermes.gateway.plist` (`RunAtLoad` + `KeepAlive`) dan langsung aktif.
+> - Kompatibel dengan `/bin/bash` bawaan macOS (Bash 3.2) serta PATH Homebrew (`/opt/homebrew/bin` & `/usr/local/bin`).
+
+---
+
+## 2. Versi Linux (Ubuntu / Debian / RHEL / Arch / dll)
 
 ### Cara Cepat (Zero-Prompt)
 1. Download / clone repo ini:
@@ -48,7 +87,7 @@ Satu script, sekali jalan: **install Hermes → set provider + model + API key �
 
 ---
 
-## 2. Versi Windows
+## 3. Versi Windows
 
 1. Extract folder ini ke mana saja, mis. `C:\Users\<kamu>\Downloads\hermes-win-installer`.
 2. Buka `install-hermes.ps1` pakai Notepad / VS Code, edit blok ini saja:
