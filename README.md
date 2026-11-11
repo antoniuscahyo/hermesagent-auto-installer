@@ -12,6 +12,43 @@ Satu script, sekali jalan: **install Hermes → set provider + model + API key �
 
 ---
 
+## 0. Persiapan: Bikin Bot Token & Ambil User ID di Telegram
+
+Sebelum menjalankan installer, siapkan 2 hal dari Telegram: **Bot Token** dan **User ID** (supaya cuma kamu yang bisa chat ke bot).
+
+### A. Bikin Bot & Ambil Bot Token (`@BotFather`)
+1. Buka aplikasi Telegram, cari **`@BotFather`** (yang ada centang biru resmi Telegram).
+2. Klik **Start** atau kirim pesan:
+   ```text
+   /newbot
+   ```
+3. **Nama tampilan bot** (bebas, contoh: `Hermes Assistant`).
+4. **Username bot** (harus unik dan **wajib diakhiri `bot`**, contoh: `cahyo_hermes_bot`).
+5. Jika berhasil, `@BotFather` akan membalas pesan berisi **HTTP API token** dengan format angka + huruf, contoh:
+   ```text
+   7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   ```
+6. **Copy token tersebut** → masukkan ke `TelegramToken` / `--telegram-token`.
+
+> **Catatan keamanan:** Jangan share Bot Token ke orang lain atau commit ke repo publik. Kalau terlanjur bocor, kirim `/revoke` ke `@BotFather` untuk generate token baru.
+
+### B. Ambil User ID Telegram (`@userinfobot`) — Sangat Disarankan
+Tanpa `TELEGRAM_ALLOWED_USERS`, **siapa pun** yang menemukan username bot kamu di Telegram bisa memakai Hermes (dan menghabiskan kuota API kamu).
+1. Cari **`@userinfobot`** di Telegram, lalu klik **Start** (atau kirim `/start`).
+2. Bot akan membalas info akun kamu, lihat bagian **`Id`**, contoh:
+   ```text
+   Id: 123456789
+   ```
+3. Copy angka tersebut → masukkan ke `TelegramAllowedUsers` / `--allowed-users`.
+   - Kalau lebih dari 1 orang, pisahkan pakai koma tanpa spasi: `123456789,987654321`.
+
+### C. Opsional: Ambil Home Channel / Group ID (`TELEGRAM_HOME_CHANNEL`)
+Cuma perlu kalau kamu mau cron job / notifikasi otomatis masuk ke grup atau chat tertentu:
+- Untuk **DM pribadi** ke kamu sendiri: langsung pakai angka **User ID** dari langkah B (`123456789`).
+- Untuk **Grup Telegram**: masukkan bot ke grup, jadikan admin (atau matikan Group Privacy di `@BotFather` → `/setprivacy` → Disable), kirim `/set-home` di grup setelah Hermes jalan — atau cek ID grup (biasanya diawali `-100...`).
+
+---
+
 ## 1. Versi macOS (Apple Silicon & Intel)
 
 ### Cara Cepat (Zero-Prompt)
